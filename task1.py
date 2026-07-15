@@ -1,4 +1,5 @@
 import numpy as np
+import cvxpy as cp
 from scipy.optimize import linprog
 import matplotlib.pyplot as plt
 
@@ -76,7 +77,7 @@ def uniform_power():
 def clipped_lstsq():
     target = np.full(n, Ides)
     p = np.linalg.lstsq(gain, target, rcond=None)[0]
-    return np.clip(p, 0, pmax)
+    return p, np.clip(p, 0, pmax)
 
 
 # 3. least squares with an extra pull toward the middle power pmax/2,
@@ -117,40 +118,36 @@ def minmax_lp():
     return res.x[:2 * m]
 
 
-# 5. exact solution: can we keep every patch within a factor `ratio` of Ides?
-#    that question is a yes/no LP, so we bisect on the ratio to find the smallest.
-def can_reach(ratio):
-    A_ub, b_ub = [], []
-    for k in range(n):
-        A_ub.append(list(gain[k]));  b_ub.append(ratio * Ides)     # I_k <= ratio*Ides
-        A_ub.append(list(-gain[k])); b_ub.append(-Ides / ratio)    # I_k >= Ides/ratio
-    return linprog(np.zeros(2 * m), A_ub=A_ub, b_ub=b_ub, bounds=[(0, pmax)] * (2 * m))
-
-
+# 5. exact convex solution for min max_k h(I_k/Ides), h(u)=max(u, 1/u).
 def exact_ratio():
-    low, high = 1.0, 2.0
-    best = can_reach(high)
-    while not best.success:
-        high *= 2
-        best = can_reach(high)
-    for _ in range(40):
-        mid = (low + high) / 2
-        res = can_reach(mid)
-        if res.success:
-            high, best = mid, res
-        else:
-            low = mid
-    return best.x[:2 * m]
+    p = cp.Variable(2 * m)
+    I = gain @ p
+    h = cp.maximum(I / Ides, Ides * cp.inv_pos(I))
+
+    problem = cp.Problem(
+        cp.Minimize(cp.max(h)),
+        [
+            0 <= p,
+            p <= pmax,
+            I >= 1e-9,
+        ],
+    )
+    problem.solve()
+    return p.value
 
 
 p1 = uniform_power()
-p2 = clipped_lstsq()
+p2_raw, p2 = clipped_lstsq()
 p3, iters = reweighted_lstsq()
 p4 = minmax_lp()
 p5 = exact_ratio()
 
 print(f"instance: {2*m} lamps, {n} patches, pmax={pmax}, Ides={Ides}")
 print(f"method 3 converged in {iters} iterations\n")
+print("method 2 raw least-squares powers:")
+print(np.array2string(p2_raw, precision=3, suppress_small=True))
+print("method 2 after clipping to [0, pmax]:")
+print(np.array2string(p2, precision=3, suppress_small=True), "\n")
 print(f"{'method':<34}{'cost':>10}")
 print("-" * 44)
 for name, p in [("1. uniform power", p1),
