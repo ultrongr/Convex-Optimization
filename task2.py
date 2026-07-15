@@ -53,13 +53,15 @@ for k in known_counts:
     print(f"{k:>6}{sq_curve[-1]:>16.6f}{tv_curve[-1]:>16.6f}")
 
 
-# one worked-out case to look at, at the sparsest sampling
-show_k = 2048
-rows, cols = pick_known(show_k)
-sampled = np.zeros((m, n))
-sampled[rows, cols] = img[rows, cols]
-recon_sq = reconstruct(rows, cols, "squared")
-recon_tv = reconstruct(rows, cols, "tv")
+# one worked-out reconstruction per known-pixel count
+examples = []
+for show_k in known_counts:
+    rows, cols = pick_known(show_k)
+    sampled = np.full((m, n), 0.5)
+    sampled[rows, cols] = img[rows, cols]
+    recon_sq = reconstruct(rows, cols, "squared")
+    recon_tv = reconstruct(rows, cols, "tv")
+    examples.append((show_k, sampled, recon_sq, recon_tv))
 
 
 fig1, ax = plt.subplots()
@@ -73,14 +75,15 @@ ax.legend()
 fig1.tight_layout()
 fig1.savefig("task2_mse.png", dpi=120)
 
-fig2, axes = plt.subplots(1, 4, figsize=(13, 3.5))
-for a, pic, title in [(axes[0], img, "original"),
-                      (axes[1], sampled, f"known pixels (|K|={show_k})"),
-                      (axes[2], recon_sq, "squared variation"),
-                      (axes[3], recon_tv, "total variation")]:
-    a.imshow(pic, cmap='gray', vmin=0, vmax=1)
-    a.set_title(title)
-    a.axis('off')
+fig2, axes = plt.subplots(len(examples), 4, figsize=(13, 3.2 * len(examples)))
+for row, (show_k, sampled, recon_sq, recon_tv) in enumerate(examples):
+    for a, pic, title in [(axes[row, 0], img, "original"),
+                          (axes[row, 1], sampled, f"known pixels (|K|={show_k})"),
+                          (axes[row, 2], recon_sq, "squared variation"),
+                          (axes[row, 3], recon_tv, "total variation")]:
+        a.imshow(pic, cmap='gray', vmin=0, vmax=1)
+        a.set_title(title)
+        a.axis('off')
 fig2.tight_layout()
 fig2.savefig("task2_reconstruction.png", dpi=120)
 
