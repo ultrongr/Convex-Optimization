@@ -37,17 +37,22 @@ def colorize(rows, cols):
     return recovered, prob.value
 
 
+def rgb_mse(recovered):
+    return np.mean((recovered - img) ** 2)
+
+
 results = []
-print(f"{'known':>7}{'tv cost':>12}")
-print("-" * 19)
+print(f"{'known':>7}{'tv cost':>12}{'RGB MSE':>12}")
+print("-" * 31)
 for k in known_counts:
     rows, cols = pick_known(k)
     recovered, cost = colorize(rows, cols)
+    error = rgb_mse(recovered)
     # what the solver sees: gray everywhere, true colour only at the known pixels
     hint = np.dstack([gray, gray, gray])
     hint[rows, cols] = img[rows, cols]
     results.append((k, hint, recovered))
-    print(f"{k:>7}{cost:>12.3f}")
+    print(f"{k:>7}{cost:>12.3f}{error:>12.6f}")
 
 
 fig, axes = plt.subplots(2, 3, figsize=(11, 7.5))
