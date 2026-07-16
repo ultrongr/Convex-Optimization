@@ -7,6 +7,8 @@ things and what each script produces.
 ## Setup
 
 ```
+git clone https://github.com/ultrongr/Convex-Optimization.git
+cd Convex-Optimization
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
